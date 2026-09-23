@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Image Resizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8; 
+        }
+        .drag-active {
+            border-color: #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col">
+
+    <header class="bg-white shadow-sm border-b border-slate-200 py-4 px-6 sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2 text-blue-600">
+                <i class="ph ph-image-square text-3xl"></i>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">Pixel<span class="text-blue-600">Perfect</span></h1>
+            </div>
+            <p class="text-sm text-slate-500 font-medium hidden sm:block">Fast, secure, local image resizing</p>
+        </div>
+    </header>
+
+    <main class="flex-grow p-6">
+        <div class="max-w-4xl mx-auto space-y-6">
+            
+            <!-- Upload Area -->
+            <div id="upload-container" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 text-center cursor-pointer transition-all hover:bg-slate-50 border-dashed border-2 border-slate-300 relative group">
+                <input type="file" id="file-input" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/png, image/jpeg, image/webp, image/gif">
+                <div class="flex flex-col items-center justify-center pointer-events-none">
+                    <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 transition-transform">
+                        <i class="ph ph-upload-simple text-3xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-slate-900 mb-1">Click or drag image here</h3>
+                    <p class="text-sm text-slate-500">Supports JPG, PNG, WEBP, GIF (Max 10MB)</p>
+                </div>
+            </div>
+
+            <!-- Workspace Area (Hidden until image uploaded) -->
+            <div id="workspace" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                
+                <!-- Preview Panel -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+                    <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 flex justify-between items-center">
+                        <span class="font-semibold text-sm text-slate-700">Preview</span>
+                        <span id="original-dims" class="text-xs text-slate-500 bg-slate-200 px-2 py-1 rounded-md"></span>
+                    </div>
+                    <div class="p-4 flex-grow flex items-center justify-center bg-slate-100 checkboard-bg overflow-hidden relative">
+                        <style>
+                            .checkboard-bg {
+                                background-image: 
+                                    linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+                                    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
+                                    linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
+                                    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+                                background-size: 20px 20px;
+                                background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+                            }
+                        </style>
+                        <img id="image-preview" src="" alt="Preview" class="max-w-full max-h-[400px] object-contain shadow-sm rounded">
+                    </div>
+                </div>
+
+                <!-- Controls Panel -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-6">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 mb-4">Resize Settings</h2>
+                        
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <!-- Width Input -->
+                            <div>
+                                <label for="width-input" class="block text-sm font-medium text-slate-700 mb-1">Width (px)</label>
+                                <div class="relative">
+                                    <input type="number" id="width-input" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                                </div>
+                            </div>
+                            
+                            <!-- Height Input -->
+                            <div>
+                                <label for="height-input" class="block text-sm font-medium text-slate-700 mb-1">Height (px)</label>
+                                <div class="relative">
+                                    <input type="number" id="height-input" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Maintain Aspect Ratio Toggle -->
+                        <div class="flex items-center mb-6 bg-slate-50 p-3 rounded-lg border border-slate-100">
+                            <input id="aspect-ratio-toggle" type="checkbox" checked class="w-4 h-4 text-blue-600 bg-white border-slate-300 rounded focus:ring-blue-500 cursor-pointer">
+                            <label for="aspect-ratio-toggle" class="ml-2 text-sm font-medium text-slate-700 cursor-pointer select-none flex-grow">
+                                Lock Aspect Ratio
+                            </label>
+                            <i class="ph ph-link text-slate-400"></i>
+                        </div>
+                        
+                        <!-- Output Format Settings -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium text-slate-700 mb-2">Output Format</label>
+                            <select id="format-select" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow appearance-none bg-white">
+                                <option value="image/png">PNG (Lossless, transparent)</option>
+                                <option value="image/jpeg">JPEG (Smaller file size)</option>
+                                <option value="image/webp">WEBP (Modern, best compression)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="mt-auto pt-6 border-t border-slate-100 flex flex-col sm:flex-row gap-3">
+                        <button id="reset-btn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition-colors w-full sm:w-auto text-center flex justify-center items-center gap-2">
+                            <i class="ph ph-arrow-counter-clockwise"></i> Reset
+                        </button>
+                        <button id="download-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-sm transition-all flex-grow text-center flex justify-center items-center gap-2 transform active:scale-95">
+                            <i class="ph ph-download-simple font-bold"></i> Resize & Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-6 text-center text-slate-500 text-sm mt-auto">
+        <p>All processing happens locally in your browser. No images are uploaded to a server.</p>
+    </footer>
+
+    <!-- Hidden Canvas for Processing -->
+    <canvas id="processing-canvas" class="hidden"></canvas>
+
+    <script>
+        // DOM Elements
+        const uploadContainer = document.getElementById('upload-container');
+        const fileInput = document.getElementById('file-input');
+        const workspace = document.getElementById('workspace');
+        const imagePreview = document.getElementById('image-preview');
+        const originalDims = document.getElementById('original-dims');
+        
+        const widthInput = document.getElementById('width-input');
+        const heightInput = document.getElementById('height-input');
+        const aspectRatioToggle = document.getElementById('aspect-ratio-toggle');
+        const formatSelect = document.getElementById('format-select');
+        
+        const resetBtn = document.getElementById('reset-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const canvas = document.getElementById('processing-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // State Variables
+        let currentImage = new Image();
+        let originalWidth = 0;
+        let originalHeight = 0;
+        let originalFileName = 'resized-image';
+        let isProgrammaticChange = false; // Prevent infinite loops in aspect ratio updates
+
+        // Drag and Drop Handlers
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, highlight, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadContainer.addEventListener(eventName, unhighlight, false);
+        });
+
+        function highlight(e) {
+            uploadContainer.classList.add('drag-active');
+        }
+
+        function unhighlight(e) {
+            uploadContainer.classList.remove('drag-active');
+        }
+
+        uploadContainer.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFiles(files[0]);
+            }
+        }
+
+        fileInput.addEventListener('change', function(e) {
+            if (this.files.length > 0) {
+                handleFiles(this.files[0]);
+            }
+        });
+
+        // File Handling
+        function handleFiles(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload an image file (JPG, PNG, WEBP, GIF).');
+                return;
+            }
+
+            // Save filename for later (without extension)
+            originalFileName = file.name.replace(/\.[^/.]+$/, "");
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = function() {
+                loadImageData(reader.result);
+            }
+        }
+
+        function loadImageData(src) {
+            currentImage.onload = function() {
+                originalWidth = currentImage.width;
+                originalHeight = currentImage.height;
+                
+                // Set initial inputs
+                widthInput.value = originalWidth;
+                heightInput.value = originalHeight;
+                
+                // Update UI
+                imagePreview.src = src;
+                originalDims.textContent = `${originalWidth} × ${originalHeight} px`;
+                
+                // Collapse upload container slightly and show workspace
+                uploadContainer.classList.add('p-4');
+                uploadContainer.classList.remove('p-8');
+                uploadContainer.querySelector('div').classList.add('flex-row', 'gap-4');
+                uploadContainer.querySelector('div').classList.remove('flex-col');
+                uploadContainer.querySelector('h3').classList.add('mb-0', 'text-base');
+                uploadContainer.querySelector('p').classList.add('hidden');
+                uploadContainer.querySelector('.w-16').classList.add('w-10', 'h-10', 'mb-0');
+                uploadContainer.querySelector('.w-16').classList.remove('w-16', 'h-16', 'mb-4');
+                
+                workspace.classList.remove('hidden');
+                
+                // Scroll to workspace smoothly
+                workspace.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            currentImage.src = src;
+        }
+
+        // Input Syncing & Aspect Ratio Calculation
+        widthInput.addEventListener('input', function() {
+            if (isProgrammaticChange || !aspectRatioToggle.checked) return;
+            
+            let newWidth = parseInt(this.value);
+            if (isNaN(newWidth) || newWidth <= 0) return;
+
+            isProgrammaticChange = true;
+            let ratio = originalHeight / originalWidth;
+            heightInput.value = Math.round(newWidth * ratio);
+            isProgrammaticChange = false;
+        });
+
+        heightInput.addEventListener('input', function() {
+            if (isProgrammaticChange || !aspectRatioToggle.checked) return;
+            
+            let newHeight = parseInt(this.value);
+            if (isNaN(newHeight) || newHeight <= 0) return;
+
+            isProgrammaticChange = true;
+            let ratio = originalWidth / originalHeight;
+            widthInput.value = Math.round(newHeight * ratio);
+            isProgrammaticChange = false;
+        });
+
+        // Reset Button
+        resetBtn.addEventListener('click', () => {
+            isProgrammaticChange = true;
+            widthInput.value = originalWidth;
+            heightInput.value = originalHeight;
+            aspectRatioToggle.checked = true;
+            formatSelect.value = 'image/png';
+            isProgrammaticChange = false;
+        });
+
+        // Processing & Downloading
+        downloadBtn.addEventListener('click', () => {
+            const finalWidth = parseInt(widthInput.value);
+            const finalHeight = parseInt(heightInput.value);
+
+            if (isNaN(finalWidth) || finalWidth <= 0 || isNaN(finalHeight) || finalHeight <= 0) {
+                alert("Please enter valid positive numbers for width and height.");
+                return;
+            }
+
+            // Set canvas dimensions
+            canvas.width = finalWidth;
+            canvas.height = finalHeight;
+
+            // Draw image on canvas (resized automatically by canvas api)
+            // Optional: Draw a white background first in case of transparent png to jpeg conversion
+            if(formatSelect.value === 'image/jpeg'){
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, finalWidth, finalHeight);
+            }
+            
+            // Apply smoothing for better quality
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            ctx.drawImage(currentImage, 0, 0, finalWidth, finalHeight);
+
+            // Get Data URL
+            const mimeType = formatSelect.value;
+            const dataUrl = canvas.toDataURL(mimeType, 0.92); // 0.92 quality for formats that support it
+
+            // Determine extension
+            let ext = 'png';
+            if (mimeType === 'image/jpeg') ext = 'jpg';
+            if (mimeType === 'image/webp') ext = 'webp';
+
+            // Trigger Download
+            const link = document.createElement('a');
+            link.download = `${originalFileName}-resized.${ext}`;
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Visual feedback
+            const originalText = downloadBtn.innerHTML;
+            downloadBtn.innerHTML = '<i class="ph ph-check-circle font-bold"></i> Downloaded!';
+            downloadBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            downloadBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+            
+            setTimeout(() => {
+                downloadBtn.innerHTML = originalText;
+                downloadBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                downloadBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
